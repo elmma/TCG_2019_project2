@@ -58,6 +58,10 @@ protected:
  * add a new random tile to an empty cell
  * 2-tile: 90%
  * 4-tile: 10%
+ *
+ * (comment add): we should replace by bag mechanism here
+ * space : board id spec.  self_role : evil
+ * we may need to record the player action
  */
 class rndenv : public random_agent {
 public:
@@ -82,6 +86,8 @@ private:
 /**
  * dummy player
  * select a legal action randomly
+ *
+ * (comment add):we should give it a new heuristic
  */
 class player : public random_agent {
 public:
@@ -92,7 +98,8 @@ public:
 		std::shuffle(opcode.begin(), opcode.end(), engine);
 		for (int op : opcode) {
 			board::reward reward = board(before).slide(op);
-			if (reward != -1) return action::slide(op);
+			if (reward != -1) return action::slide(op);	
+			// in origin , we just pick up a valid slide randomly
 		}
 		return action();
 	}

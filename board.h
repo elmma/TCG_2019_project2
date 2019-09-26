@@ -50,6 +50,9 @@ public:
 	/**
 	 * place a tile (index value) to the specific position (1-d form index)
 	 * return 0 if the action is valid, or -1 if not
+	 *
+	 * (comment add) : we later have to modify its valid symbols for tiles
+	 * (1,2) -> (1,2,3)
 	 */
 	reward place(unsigned pos, cell tile) {
 		if (pos >= 16) return -1;
@@ -72,22 +75,32 @@ public:
 		}
 	}
 
+	// my comment 
+	/**  tile : 2d-array ,top : remaining-tile index
+	 *   consider a row tiles : ( * for current hold tile , x for top index)  
+	 *	 a 0 b 0 -> 0 a b 0 -> a 0 b 0 -> a 0 0 b -> a b 0 0 -> done
+	 *   x*		 -> x *	   ->   x *   ->   x   * ->     x   
+	 *   
+	 *	 here we have to change the merge rule and the movement ,others already done 
+	 */
 	reward slide_left() {
 		board prev = *this;
 		reward score = 0;
 		for (int r = 0; r < 4; r++) {
-			auto& row = tile[r];
+			auto& row = tile[r];	// pick up row
 			int top = 0, hold = 0;
 			for (int c = 0; c < 4; c++) {
-				int tile = row[c];
+				int tile = row[c];				// (a b c d) tile(local) : (init) (a)
 				if (tile == 0) continue;
-				row[c] = 0;
+				row[c] = 0;		// hold in tile(local)
 				if (hold) {
-					if (tile == hold) {
+					// holding the same tile -> merge ->move to top index
+					if (tile == hold) {	
 						row[top++] = ++tile;
 						score += (1 << tile);
 						hold = 0;
 					} else {
+					// not the same ,singlely move to top
 						row[top++] = hold;
 						hold = tile;
 					}
