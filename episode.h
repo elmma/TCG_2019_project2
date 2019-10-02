@@ -35,9 +35,12 @@ public:
 		ep_score += reward;
 		return true;
 	}
+	// add test
+	// init 9 step is for evil. in 2048 player odd, but in threes even
 	agent& take_turns(agent& play, agent& evil) {
 		ep_time = millisec();
-		return (std::max(step() + 1, size_t(2)) % 2) ? play : evil;
+		// return (std::max(step() + 1, size_t(2)) % 2) ? play : evil;
+		return (std::max(step() + 1, size_t(9)) % 2) ? evil : play;
 	}
 	agent& last_turns(agent& play, agent& evil) {
 		return take_turns(evil, play);
