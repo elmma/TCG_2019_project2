@@ -20,10 +20,10 @@ public:
 	typedef std::array<row, 4> grid;
 	typedef uint64_t data;
 	typedef int reward;
-	typedef int op; //add for sliding rule
+	typedef unsigned op; //add for sliding rule
 
 public:
-	board() : tile(), attr(0) {}
+	board() : tile(), attr(0), last_act(5) {}
 	board(const grid& b, data v = 0) : tile(b), attr(v) {}
 	board(const board& b) = default;
 	board& operator =(const board& b) = default;
@@ -68,6 +68,9 @@ public:
 	 * return the reward of the action, or -1 if the action is illegal
 	 */
 	reward slide(unsigned opcode) {
+		// test
+		last_act = opcode & 0b11;
+
 		switch (opcode & 0b11) {
 		case 0: return slide_up();
 		case 1: return slide_right();
@@ -225,4 +228,8 @@ public:
 private:
 	grid tile;
 	data attr;
+
+// add last_act for sliding rule
+public:
+	op last_act;
 };

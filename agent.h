@@ -70,8 +70,13 @@ public:
 
 	virtual action take_action(const board& after) {
 		std::shuffle(space.begin(), space.end(), engine);
+		board::op last = after.last_act;	// pass last act
 		for (int pos : space) {
 			if (after(pos) != 0) continue;
+			if (last == 0 && pos < 12) continue; 
+			if (last == 2 && pos > 3) continue; 
+			if (last == 1 && pos % 4) continue; 
+			if (last == 3 && (pos+1) % 4) continue; 
 			// board::cell tile = popup(engine) ? 1 : 2;
 			// simple test , for now it is just the trivial bag rule
 			board::cell tile = ++test;
