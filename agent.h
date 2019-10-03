@@ -56,12 +56,14 @@ protected:
 /**
  * random environment
  * add a new random tile to an empty cell
- * 2-tile: 90%
- * 4-tile: 10%
- *
  * (comment add): we should replace by bag mechanism here
  * space : board id spec.  self_role : evil
  * we may need to record the player action
+ * 
+ * record player action as criterion 
+ * note that always add tile to boarder
+ * randomly shuffle bag when new bag round
+ * to reset the parameter, implement close method
  */
 class rndenv : public random_agent {
 public:
@@ -78,13 +80,12 @@ public:
 		board::op last = after.get_last_act();	// pass last act
 		for (int pos : space) {
 			if (after(pos) != 0) continue;
+
+			// boarder: (0,1,2,3) ,(0,4,8,12) ,(12,13,14,15) ,(3,7,11,15)
 			if (last == 0 && pos < 12) continue; 
 			if (last == 2 && pos > 3) continue; 
 			if (last == 1 && pos % 4) continue; 
 			if (last == 3 && (pos+1) % 4) continue; 
-			// board::cell tile = popup(engine) ? 1 : 2;
-			// simple test , for now it is just the trivial bag rule
-			//if(idx == first) first = idx = popup(engine);
 			
 			if(idx == 0 ) std::shuffle(bag.begin(), bag.end(), engine);
 			board::cell tile = bag[idx++];
@@ -96,10 +97,9 @@ public:
 	}
 
 private:
-	std::array<int, 16> space;
-	// testing
-	int idx;
-	std::array<int, 3> bag;
+	std::array<int, 16> space;	
+	int idx;					// add
+	std::array<int, 3> bag;		// add
 	std::uniform_int_distribution<int> popup;
 };
 
@@ -108,6 +108,7 @@ private:
  * select a legal action randomly
  *
  * (comment add):we should give it a new heuristic
+ * we pick action by choosing the max afterstate value(reward)
  */
 class player : public random_agent {
 public:

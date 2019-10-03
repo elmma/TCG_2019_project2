@@ -52,7 +52,7 @@ public:
 	 * place a tile (index value) to the specific position (1-d form index)
 	 * return 0 if the action is valid, or -1 if not
 	 *
-	 * (comment add) : we later have to modify its valid symbols for tiles
+	 * (comment add) : we modify its valid symbols for tiles
 	 * (1,2) -> (1,2,3)
 	 */
 	reward place(unsigned pos, cell tile) {
@@ -66,10 +66,11 @@ public:
 	/**
 	 * apply an action to the board
 	 * return the reward of the action, or -1 if the action is illegal
+	 * (add) we set last_act here for evil placing tile
 	 */
 	reward slide(unsigned opcode) {
-		// test
-		last_act = opcode & 0b11;
+
+		last_act = opcode & 0b11;	// set action record
 
 		switch (opcode & 0b11) {
 		case 0: return slide_up();
@@ -87,37 +88,13 @@ public:
 	 *   x*		 -> x *	   ->   x *   ->   x   * ->     x   
 	 *   
 	 *	 here we have to change the merge rule and the movement ,others already done 
+	 *
+	 * 	 we introduce new sliding here , we should note the rules(facts) : (use left)
+	 *   1. for rows ,no double merge occur ,only the left pair merge
+	 *   2. if first tile empty(for row) ,then no merge ,all tiles shift left 1
+	 *   3. if a merge occur ,shift left 1 for later tiles
 	 */
-	/*
-	reward slide_left() {
-		board prev = *this;
-		reward score = 0;
-		for (int r = 0; r < 4; r++) {
-			auto& row = tile[r];	// pick up row
-			int top = 0, hold = 0;
-			for (int c = 0; c < 4; c++) {
-				int tile = row[c];				// (a b c d) tile(local) : (init) (a)
-				if (tile == 0) continue;
-				row[c] = 0;		// hold in tile(local)
-				if (hold) {
-					// holding the same tile -> merge ->move to top index
-					if (tile == hold) {	
-						row[top++] = ++tile;
-						score += (1 << tile);
-						hold = 0;
-					} else {
-					// not the same ,singlely move to top
-						row[top++] = hold;
-						hold = tile;
-					}
-				} else {
-					hold = tile;
-				}
-			}
-			if (hold) tile[r][top] = hold;
-		}
-		return (*this != prev) ? score : -1;
-	}*/
+	
 
 	// test slide_left for threes
 	// for rows, holding itself if no move,holding zero if move 
@@ -129,10 +106,10 @@ public:
 			auto& row = tile[r];	// pick up row
 			int hold = row[0];	// we hold the left at first
 			for (int c = 1; c < 4; c++) {
-				int tile = row[c];				// (a b c d) tile(local) : (init) (a)
-				//row[c] = 0;		// hold in tile(local)
+				int tile = row[c];				
+				//row[c] = 0;		// in here we do not reset tile
 				if (hold) {
-					// holding the same tile -> merge ->move to top index
+					// holding the same tile -> merge ->move to prev index
 					if (tile > 2 && tile == hold) {		// 3n case
 						row[c-1] = tile+hold;
 						score += (tile+hold);	// ?
@@ -225,7 +202,7 @@ public:
 		return out;
 	}
 
-// test , make last act passing good
+// add for passing action
 public: 
 	const op get_last_act() const {
 		return this->last_act;
@@ -234,8 +211,6 @@ public:
 private:
 	grid tile;
 	data attr;
-	op last_act;
-// add last_act for sliding rule
-public:
+	op last_act;	// add last_act for sliding rule
 	
 };
