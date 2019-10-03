@@ -20,9 +20,10 @@ public:
 	typedef std::array<row, 4> grid;
 	typedef uint64_t data;
 	typedef int reward;
+	typedef unsigned op; //add for sliding rule
 
 public:
-	board() : tile(), attr(0) {}
+	board() : tile(), attr(0), last_act(5) {}
 	board(const grid& b, data v = 0) : tile(b), attr(v) {}
 	board(const board& b) = default;
 	board& operator =(const board& b) = default;
@@ -56,7 +57,8 @@ public:
 	 */
 	reward place(unsigned pos, cell tile) {
 		if (pos >= 16) return -1;
-		if (tile != 1 && tile != 2) return -1;
+		// add tile 3 here
+		if (tile != 1 && tile != 2 && tile != 3) return -1;
 		operator()(pos) = tile;
 		return 0;
 	}
@@ -66,6 +68,9 @@ public:
 	 * return the reward of the action, or -1 if the action is illegal
 	 */
 	reward slide(unsigned opcode) {
+		// test
+		last_act = opcode & 0b11;
+
 		switch (opcode & 0b11) {
 		case 0: return slide_up();
 		case 1: return slide_right();
@@ -83,6 +88,7 @@ public:
 	 *   
 	 *	 here we have to change the merge rule and the movement ,others already done 
 	 */
+	/*
 	reward slide_left() {
 		board prev = *this;
 		reward score = 0;
@@ -111,7 +117,44 @@ public:
 			if (hold) tile[r][top] = hold;
 		}
 		return (*this != prev) ? score : -1;
+	}*/
+
+	// test slide_left for threes
+	// for rows, holding itself if no move,holding zero if move 
+
+	reward slide_left() {
+		board prev = *this;
+		reward score = 0;	// +1 if eliminate tiles
+		for (int r = 0; r < 4; r++) {
+			auto& row = tile[r];	// pick up row
+			int hold = row[0];	// we hold the left at first
+			for (int c = 1; c < 4; c++) {
+				int tile = row[c];				// (a b c d) tile(local) : (init) (a)
+				//row[c] = 0;		// hold in tile(local)
+				if (hold) {
+					// holding the same tile -> merge ->move to top index
+					if (tile > 2 && tile == hold) {		// 3n case
+						row[c-1] = tile+hold;
+						score += (tile+hold);	// ?
+						hold = 0;
+					} else if ((tile+hold==3) && tile<3) {	// 1+2 case
+						row[c-1] = tile+hold;
+						score += (tile+hold);	// ?
+						hold = 0;
+					} else {
+					// not the same ,change hold to this
+						hold = tile;
+					}
+				} else {
+					row[c-1]=tile;	// if holding zero , then prev vacant -> move
+					// hold = 0;  // already zero
+				}
+			}
+			row[3] = hold;	// always put back
+		}
+		return (*this != prev) ? score : -1;
 	}
+
 	reward slide_right() {
 		reflect_horizontal();
 		reward score = slide_left();
@@ -185,4 +228,8 @@ public:
 private:
 	grid tile;
 	data attr;
+
+// add last_act for sliding rule
+public:
+	op last_act;
 };
