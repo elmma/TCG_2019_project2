@@ -66,7 +66,12 @@ protected:
 class rndenv : public random_agent {
 public:
 	rndenv(const std::string& args = "") : random_agent("name=random role=environment " + args),
-		space({ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }),test(0) ,popup(0, 9) {}
+		space({ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }),idx(0) ,bag({1,2,3}) ,popup(0, 2) {}
+
+	virtual void close_episode(const std::string& flag = "") {
+		// reset the evil para. for next ep
+		idx = 0;
+	}
 
 	virtual action take_action(const board& after) {
 		std::shuffle(space.begin(), space.end(), engine);
@@ -79,8 +84,12 @@ public:
 			if (last == 3 && (pos+1) % 4) continue; 
 			// board::cell tile = popup(engine) ? 1 : 2;
 			// simple test , for now it is just the trivial bag rule
-			board::cell tile = ++test;
-			test%=3; 
+			//if(idx == first) first = idx = popup(engine);
+			
+			if(idx == 0 ) std::shuffle(bag.begin(), bag.end(), engine);
+			board::cell tile = bag[idx++];
+			idx %= 3;
+
 			return action::place(pos, tile);
 		}
 		return action();
@@ -89,7 +98,8 @@ public:
 private:
 	std::array<int, 16> space;
 	// testing
-	int test;
+	int idx;
+	std::array<int, 3> bag;
 	std::uniform_int_distribution<int> popup;
 };
 
