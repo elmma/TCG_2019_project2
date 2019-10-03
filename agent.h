@@ -75,7 +75,7 @@ public:
 
 	virtual action take_action(const board& after) {
 		std::shuffle(space.begin(), space.end(), engine);
-		board::op last = after.last_act;	// pass last act
+		board::op last = after.get_last_act();	// pass last act
 		for (int pos : space) {
 			if (after(pos) != 0) continue;
 			if (last == 0 && pos < 12) continue; 

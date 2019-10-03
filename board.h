@@ -225,11 +225,17 @@ public:
 		return out;
 	}
 
+// test , make last act passing good
+public: 
+	const op get_last_act() const {
+		return this->last_act;
+	}
+
 private:
 	grid tile;
 	data attr;
-
+	op last_act;
 // add last_act for sliding rule
 public:
-	op last_act;
+	
 };
