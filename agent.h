@@ -76,6 +76,12 @@ protected:
 	virtual void init_weights(const std::string& info) {
 		net.emplace_back(65536); // create an empty weight table with size 65536
 		net.emplace_back(65536); // create an empty weight table with size 65536
+		net.emplace_back(65536); // create an empty weight table with size 65536
+		net.emplace_back(65536); // create an empty weight table with size 65536
+		net.emplace_back(65536); // create an empty weight table with size 65536
+		net.emplace_back(65536); // create an empty weight table with size 65536
+		net.emplace_back(65536); // create an empty weight table with size 65536
+		net.emplace_back(65536); // create an empty weight table with size 65536
 		// now net.size() == 2; net[0].size() == 65536; net[1].size() == 65536
 	}
 	virtual void load_weights(const std::string& path) {
@@ -102,14 +108,30 @@ protected:
 
 /**
  * base agent for agents with a learning rate
+ * (add) we modify here
  */
-class learning_agent : public agent {
+class learning_agent : public weight_agent {
 public:
-	learning_agent(const std::string& args = "") : agent(args), alpha(0.1f) {
+	learning_agent(const std::string& args = "") : weight_agent(args), alpha(0.1f) {
 		if (meta.find("alpha") != meta.end())
 			alpha = float(meta["alpha"]);
 	}
 	virtual ~learning_agent() {}
+
+	// add utilities
+	float evaluate(){
+		float V=0;
+		V += net[0]
+	}
+
+	float update(){
+
+	}
+
+	virtual void close_episode(const std::string& flag = "") {
+		// apply TD-training
+		idx = 0;
+	}
 
 protected:
 	float alpha;
