@@ -6,4 +6,8 @@ TODO list:
 agent.h :  
 
 1. to implement the weighted_agent and learning_agent
-2. apply agent on player , do train
+2. apply agent on player , do train  
+  
+  
+for now we have :
+1. fix the stat format

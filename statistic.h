@@ -57,7 +57,7 @@ public:
 			auto& ep = *(--it);
 			sum += ep.score();
 			max = std::max(ep.score(), max);
-			// super simple stat , {1,2} may be wrong
+			// super simple stat , {0,1,2,3} may be wrong
 			stat[(*std::max_element(&(ep.state()(0)), &(ep.state()(16))))/6]++;
 			sop += ep.step();
 			pop += ep.step(action::slide::type);

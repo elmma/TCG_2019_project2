@@ -74,14 +74,16 @@ public:
 
 protected:
 	virtual void init_weights(const std::string& info) {
-		net.emplace_back(65536); // create an empty weight table with size 65536
-		net.emplace_back(65536); // create an empty weight table with size 65536
-		net.emplace_back(65536); // create an empty weight table with size 65536
-		net.emplace_back(65536); // create an empty weight table with size 65536
-		net.emplace_back(65536); // create an empty weight table with size 65536
-		net.emplace_back(65536); // create an empty weight table with size 65536
-		net.emplace_back(65536); // create an empty weight table with size 65536
-		net.emplace_back(65536); // create an empty weight table with size 65536
+		// add : actually we just need 15^4 for threes instead of 2^16 for 2048
+		// here we use 2^16 for converting the index easier
+		net.emplace_back(65536); 
+		net.emplace_back(65536); 
+		net.emplace_back(65536); 
+		net.emplace_back(65536); 
+		net.emplace_back(65536); 
+		net.emplace_back(65536); 
+		net.emplace_back(65536); 
+		net.emplace_back(65536); 
 		// now net.size() == 2; net[0].size() == 65536; net[1].size() == 65536
 	}
 	virtual void load_weights(const std::string& path) {
@@ -119,18 +121,47 @@ public:
 	virtual ~learning_agent() {}
 
 	// add utilities
-	float evaluate(){
+	float decode(const board& state, int t1, int t2, int t3, int t4) const{
+		// change board info to net index
+		uint32_t space[] = {0, 1, 2, 3, 6, 12, 24, 48, 96, 192, 384, 768, 1536, 3072, 6144};
+		int s1, s2, s3, s4; s1=s2=s3=s4=0;
+		while(state(t1)!=space[s1] && s1 < 15) ++s1; 
+		while(state(t2)!=space[s2] && s2 < 15) ++s2; 
+		while(state(t3)!=space[s3] && s3 < 15) ++s3; 
+		while(state(t4)!=space[s4] && s4 < 15) ++s4; 
+		//std::cout << "----------------------------------------------------" <<std::endl;
+		//std::cout << (s1) << " " << (s2) << " " << (s3) << " " <<(s4) <<std::endl;
+		//std::cout << (s1<<12) + (s2<<8) + (s3<<4) +(s4) <<std::endl;
+		//std::cout << "----------------------------------------------------" <<std::endl;
+		return (s1<<12) + (s2<<8) + (s3<<4) +(s4);	// use 16 for conv
+	}
+
+	float state_value(const board& s) const{
 		float V=0;
-		V += net[0]
+		V += net[0][decode(s,0,1,2,3)];
+		V += net[1][decode(s,4,5,6,7)];
+		V += net[2][decode(s,8,9,10,11)];
+		V += net[3][decode(s,12,13,14,15)];
+		V += net[4][decode(s,0,4,8,12)];
+		V += net[5][decode(s,1,5,9,13)];
+		V += net[6][decode(s,2,6,10,14)];
+		V += net[7][decode(s,3,7,11,15)];
+		return V;
 	}
-
-	float update(){
-
-	}
-
-	virtual void close_episode(const std::string& flag = "") {
-		// apply TD-training
-		idx = 0;
+	// for after state , we only give the evaluation instead of (state,reward) pair
+	float update(const board& s, const float eval_after){
+		// note that terminal state with target 0 : end TRUE -> term
+		float delta = eval_after - state_value(s);
+		float V=0; float rate = alpha/32.0; 
+		V += (net[0][decode(s,0,1,2,3)] += rate*delta);
+		V += (net[1][decode(s,4,5,6,7)] += rate*delta);
+		V += (net[2][decode(s,8,9,10,11)] += rate*delta);
+		V += (net[3][decode(s,12,13,14,15)] += rate*delta);
+		V += (net[4][decode(s,0,4,8,12)] += rate*delta);
+		V += (net[5][decode(s,1,5,9,13)] += rate*delta);
+		V += (net[6][decode(s,2,6,10,14)] += rate*delta);
+		V += (net[7][decode(s,3,7,11,15)] += rate*delta);
+		return V; 	// return updated state value
 	}
 
 protected:
@@ -207,6 +238,40 @@ public:
 			// in origin , we just pick up a valid slide randomly
 		}
 		return action();
+	}
+
+private:
+	std::array<int, 4> opcode;
+};
+
+/**
+ * learning player : what we use for player
+ *
+ */
+class learning_player : public learning_agent {
+public:
+	learning_player(const std::string& args = "") : learning_agent("name=learning role=player " + args),
+		opcode({ 0, 1, 2, 3 }) {}
+
+	// consider all possible action, evaluate after state value with reward
+	// select the action with largest evaluation, should be careful the terminaal state   
+	virtual action take_action(const board& before) {
+		int best_op = -1; float best_eval = -9999999.0;
+		for (int op : opcode) {
+			board after = board(before);
+			board::reward reward = after.slide(op);
+			// now we have s = before, s'=after, r = reward
+			if (reward == -1) continue;	// not valid action
+			float eval = static_cast<float>(reward) + state_value(after);
+			if(best_eval <= eval) {best_op = op; best_eval = eval;}
+		}
+
+		// update para.
+		if(best_op == -1) update(before,0);	// terminal : target = 0 , reward = -1
+		else update(before,best_eval);
+		
+		return (best_op != -1) ? action::slide(best_op) : action();
+		//return action();
 	}
 
 private:
