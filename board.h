@@ -19,14 +19,15 @@ public:
 	typedef std::array<cell, 4> row;
 	typedef std::array<row, 4> grid;
 	typedef uint64_t data;
-	typedef int reward;
+	typedef int reward;	
 	typedef unsigned op; //add for sliding rule
 
 public:
-	board() : tile(), attr(0), last_act(5) {}
+	board() : tile(), attr(0), last_act(5), round(0) {}
 	board(const grid& b, data v = 0) : tile(b), attr(v) {}
 	board(const board& b) = default;
 	board& operator =(const board& b) = default;
+	
 
 	operator grid&() { return tile; }
 	operator const grid&() const { return tile; }
@@ -71,7 +72,10 @@ public:
 	reward slide(unsigned opcode) {
 
 		last_act = opcode & 0b11;	// set action record
-
+		round++;
+		//std::cout << "----------------------------------------------------" <<std::endl;
+		//std::cout << round <<std::endl;
+		//std::cout << "----------------------------------------------------" <<std::endl;
 		switch (opcode & 0b11) {
 		case 0: return slide_up();
 		case 1: return slide_right();
@@ -212,5 +216,5 @@ private:
 	grid tile;
 	data attr;
 	op last_act;	// add last_act for sliding rule
-	
+	int round;
 };

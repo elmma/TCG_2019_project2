@@ -59,7 +59,7 @@ protected:
 /**
  * base agent for agents with weight tables
  */
-class weight_agent : public agent {
+class weight_agent : public random_agent {
 public:
 	weight_agent(const std::string& args = "") : agent(args) {
 		if (meta.find("init") != meta.end()) // pass init=... to initialize the weight
@@ -146,21 +146,30 @@ public:
 		V += net[5][decode(s,1,5,9,13)];
 		V += net[6][decode(s,2,6,10,14)];
 		V += net[7][decode(s,3,7,11,15)];
+		//std::cout << "----------------------------------------------------" <<std::endl;
+		//std::cout << V <<std::endl;
+		//std::cout << "----------------------------------------------------" <<std::endl;
 		return V;
 	}
 	// for after state , we only give the evaluation instead of (state,reward) pair
-	float update(const board& s, const float eval_after){
+	float update(const board& s, const board& s_after, float reward, bool end){
 		// note that terminal state with target 0 : end TRUE -> term
-		float delta = eval_after - state_value(s);
-		float V=0; float rate = alpha/32.0; 
-		V += (net[0][decode(s,0,1,2,3)] += rate*delta);
-		V += (net[1][decode(s,4,5,6,7)] += rate*delta);
-		V += (net[2][decode(s,8,9,10,11)] += rate*delta);
-		V += (net[3][decode(s,12,13,14,15)] += rate*delta);
-		V += (net[4][decode(s,0,4,8,12)] += rate*delta);
-		V += (net[5][decode(s,1,5,9,13)] += rate*delta);
-		V += (net[6][decode(s,2,6,10,14)] += rate*delta);
-		V += (net[7][decode(s,3,7,11,15)] += rate*delta);
+		float delta = reward + 0.5*((end)? (0) : (state_value(s_after))) - state_value(s);
+		float V=0; float rate = alpha/8.0; 
+		//std::cout << "----------------------------------------------------" <<std::endl;
+		//std::cout << "delta : " << delta <<std::endl;
+		//std::cout << "before : " << net[0][decode(s,0,1,2,3)] <<std::endl;
+		//std::cout << "step: " << rate*delta <<std::endl;
+		(net[0][decode(s,0,1,2,3)] += rate*delta);
+		(net[1][decode(s,4,5,6,7)] += rate*delta);
+		(net[2][decode(s,8,9,10,11)] += rate*delta);
+		(net[3][decode(s,12,13,14,15)] += rate*delta);
+		(net[4][decode(s,0,4,8,12)] += rate*delta);
+		(net[5][decode(s,1,5,9,13)] += rate*delta);
+		(net[6][decode(s,2,6,10,14)] += rate*delta);
+		(net[7][decode(s,3,7,11,15)] += rate*delta);
+		//std::cout << "after : " << net[0][decode(s,0,1,2,3)] <<std::endl;
+		//std::cout << "----------------------------------------------------" <<std::endl;
 		return V; 	// return updated state value
 	}
 
@@ -251,29 +260,41 @@ private:
 class learning_player : public learning_agent {
 public:
 	learning_player(const std::string& args = "") : learning_agent("name=learning role=player " + args),
-		opcode({ 0, 1, 2, 3 }) {}
+		opcode({ 0, 1, 2, 3 }), round(0) {}
 
 	// consider all possible action, evaluate after state value with reward
 	// select the action with largest evaluation, should be careful the terminaal state   
+	// evil state space :
 	virtual action take_action(const board& before) {
-		int best_op = -1; float best_eval = -9999999.0;
-		for (int op : opcode) {
-			board after = board(before);
-			board::reward reward = after.slide(op);
+		int best_op = -1; float best_eval = -9999999.0; 
+		board after; board::reward reward;
+		std::shuffle(opcode.begin(), opcode.end(), engine);
+	 	for (int op : opcode) {
+			after = board(before);
+			reward = after.slide(op);
 			// now we have s = before, s'=after, r = reward
 			if (reward == -1) continue;	// not valid action
 			float eval = static_cast<float>(reward) + state_value(after);
 			if(best_eval <= eval) {best_op = op; best_eval = eval;}
 		}
 
+		after = board(before);
+		reward = after.slide(best_op);
+
 		// update para.
-		if(best_op == -1) update(before,0);	// terminal : target = 0 , reward = -1
-		else update(before,best_eval);
-		
+		if(round) {
+			if(best_op == -1) update(s_before,after,-100,true);	// terminal : target = 0 , reward = -1
+			else update(s_before,after,static_cast<float>(reward),false);
+		}
+		// update state in player space
+		s_before = after;
+
 		return (best_op != -1) ? action::slide(best_op) : action();
 		//return action();
 	}
 
 private:
 	std::array<int, 4> opcode;
+	board s_before;	// player space : last state log
+	unsigned round;
 };
