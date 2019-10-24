@@ -59,7 +59,7 @@ protected:
 /**
  * base agent for agents with weight tables
  */
-class weight_agent : public random_agent {
+class weight_agent : public agent {
 public:
 	weight_agent(const std::string& args = "") : agent(args) {
 		if (meta.find("init") != meta.end()) // pass init=... to initialize the weight
@@ -154,8 +154,8 @@ public:
 	// for after state , we only give the evaluation instead of (state,reward) pair
 	float update(const board& s, const board& s_after, float reward, bool end){
 		// note that terminal state with target 0 : end TRUE -> term
-		float delta = reward + 0.5*((end)? (0) : (state_value(s_after))) - state_value(s);
-		float V=0; float rate = alpha/8.0; 
+		float delta = reward + ((end)? (0) : (state_value(s_after))) - state_value(s);
+		float V=0; float rate = alpha/8.0;
 		//std::cout << "----------------------------------------------------" <<std::endl;
 		//std::cout << "delta : " << delta <<std::endl;
 		//std::cout << "before : " << net[0][decode(s,0,1,2,3)] <<std::endl;
@@ -173,6 +173,7 @@ public:
 		return V; 	// return updated state value
 	}
 
+	
 protected:
 	float alpha;
 };
@@ -268,33 +269,44 @@ public:
 	virtual action take_action(const board& before) {
 		int best_op = -1; float best_eval = -9999999.0; 
 		board after; board::reward reward;
-		std::shuffle(opcode.begin(), opcode.end(), engine);
-	 	for (int op : opcode) {
+	 	
+		for (int op : opcode) {
 			after = board(before);
 			reward = after.slide(op);
 			// now we have s = before, s'=after, r = reward
 			if (reward == -1) continue;	// not valid action
-			float eval = static_cast<float>(reward) + state_value(after);
+			// float eval = static_cast<float>(reward) + state_value(after);
+			float eval = reward + state_value(after);
 			if(best_eval <= eval) {best_op = op; best_eval = eval;}
-		}
+		}	
 
 		after = board(before);
 		reward = after.slide(best_op);
-
-		// update para.
-		if(round) {
-			if(best_op == -1) update(s_before,after,-100,true);	// terminal : target = 0 , reward = -1
-			else update(s_before,after,static_cast<float>(reward),false);
-		}
-		// update state in player space
-		s_before = after;
+		state.emplace_back(board(after));
+		rh.emplace_back(reward);
 
 		return (best_op != -1) ? action::slide(best_op) : action();
 		//return action();
 	}
 
+	virtual void close_episode(const std::string& flag = "") {
+    	// train the n-tuple network by TD(0)
+   		update(state[state.size()-1],board(),rh[state.size()-1],true);
+    	for(int i = state.size() - 2; i >= 0; i--){
+        	update(state[i],state[i+1],rh[i],false);
+    	}	
+	}
+	
+	virtual void open_episode(const std::string& flag = "") {
+    	state.clear();
+		rh.clear();
+	}
+
+
 private:
 	std::array<int, 4> opcode;
 	board s_before;	// player space : last state log
 	unsigned round;
+	std::vector<board> state;
+	std::vector<float> rh;
 };
