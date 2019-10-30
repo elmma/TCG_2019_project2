@@ -3,6 +3,9 @@
 #include <algorithm>
 #include <iostream>
 #include <sstream>
+
+#include <cmath>
+
 #include "board.h"
 #include "action.h"
 #include "agent.h"
@@ -46,6 +49,14 @@ public:
 	 *  '93.7%': 93.7% (937 games) reached 8192-tiles (a.k.a. win rate of 8192-tile)
 	 *  '22.4%': 22.4% (224 games) terminated with 8192-tiles (the largest)
 	 */
+
+// add some decode function for transform the space
+	int dec(int input, bool mode = false) const{
+		uint32_t space[] = {0, 1, 2, 3, 6, 12, 24, 48, 96, 192, 384, 768, 1536, 3072, 6144};
+		if(mode) return space[input];
+		return (input<5) ? input : static_cast<int>(log2(input/6)+4);
+	}
+
 	void show(bool tstat = true) const {
 		size_t blk = std::min(data.size(), block);
 		size_t stat[64] = { 0 };
@@ -57,8 +68,14 @@ public:
 			auto& ep = *(--it);
 			sum += ep.score();
 			max = std::max(ep.score(), max);
+
 			// super simple stat , {0,1,2,3} may be wrong
-			stat[(*std::max_element(&(ep.state()(0)), &(ep.state()(16))))/6]++;
+			//int test_num = (*std::max_element(&(ep.state()(0)), &(ep.state()(16))));
+			//if(i==0) std::cout << "-----------------------start-------------------------------\n";
+			//std::cout << test_num << " " << dec(test_num,false) << std::endl;
+			//if(i==blk-1) std::cout << "\n------------------------end--------------------------------\n";
+
+			stat[dec(*std::max_element(&(ep.state()(0)), &(ep.state()(16))))]++;
 			sop += ep.step();
 			pop += ep.step(action::slide::type);
 			eop += ep.step(action::place::type);
@@ -66,7 +83,6 @@ public:
 			pdu += ep.time(action::slide::type);
 			edu += ep.time(action::place::type);
 		}
-
 		std::ios ff(nullptr);
 		ff.copyfmt(std::cout);
 		std::cout << std::fixed << std::setprecision(0);
@@ -85,7 +101,7 @@ public:
 			unsigned accu = std::accumulate(std::begin(stat) + t, std::end(stat), 0);
 			// std::cout << "\t" << ((1 << t) & -2u); // type
 			// super simple stat , {1,2} may be wrong
-			std::cout << "\t" << (t*6); // type
+			std::cout << "\t" << dec(t,true); // type
 			std::cout << "\t" << (accu * 100.0 / blk) << "%"; // win rate
 			std::cout << "\t" "(" << (stat[t] * 100.0 / blk) << "%" ")"; // percentage of ending
 			std::cout << std::endl;
@@ -140,6 +156,8 @@ public:
 		stat.count = stat.data.size();
 		return in;
 	}
+
+
 
 private:
 	size_t total;
