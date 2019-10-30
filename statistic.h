@@ -3,9 +3,6 @@
 #include <algorithm>
 #include <iostream>
 #include <sstream>
-
-#include <cmath>
-
 #include "board.h"
 #include "action.h"
 #include "agent.h"
@@ -50,12 +47,6 @@ public:
 	 *  '22.4%': 22.4% (224 games) terminated with 8192-tiles (the largest)
 	 */
 
-// add some decode function for transform the space
-	int dec(int input, bool mode = false) const{
-		uint32_t space[] = {0, 1, 2, 3, 6, 12, 24, 48, 96, 192, 384, 768, 1536, 3072, 6144};
-		if(mode) return space[input];
-		return (input<5) ? input : static_cast<int>(log2(input/6)+4);
-	}
 
 	void show(bool tstat = true) const {
 		size_t blk = std::min(data.size(), block);
@@ -75,7 +66,7 @@ public:
 			//std::cout << test_num << " " << dec(test_num,false) << std::endl;
 			//if(i==blk-1) std::cout << "\n------------------------end--------------------------------\n";
 
-			stat[dec(*std::max_element(&(ep.state()(0)), &(ep.state()(16))))]++;
+			stat[board().dec(*std::max_element(&(ep.state()(0)), &(ep.state()(16))))]++;
 			sop += ep.step();
 			pop += ep.step(action::slide::type);
 			eop += ep.step(action::place::type);
@@ -101,7 +92,7 @@ public:
 			unsigned accu = std::accumulate(std::begin(stat) + t, std::end(stat), 0);
 			// std::cout << "\t" << ((1 << t) & -2u); // type
 			// super simple stat , {1,2} may be wrong
-			std::cout << "\t" << dec(t,true); // type
+			std::cout << "\t" << board().dec(t,true); // type
 			std::cout << "\t" << (accu * 100.0 / blk) << "%"; // win rate
 			std::cout << "\t" "(" << (stat[t] * 100.0 / blk) << "%" ")"; // percentage of ending
 			std::cout << std::endl;

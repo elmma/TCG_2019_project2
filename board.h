@@ -3,6 +3,8 @@
 #include <iostream>
 #include <iomanip>
 
+#include <cmath>
+
 /**
  * array-based board for 2048
  *
@@ -210,6 +212,13 @@ public:
 public: 
 	const op get_last_act() const {
 		return this->last_act;
+	}
+
+// add some decode function for transform the space	
+int dec(int input, bool mode = false) const{
+		uint32_t space[] = {0, 1, 2, 3, 6, 12, 24, 48, 96, 192, 384, 768, 1536, 3072, 6144};
+		if(mode) return space[input];
+		return (input<5) ? input : static_cast<int>(log2(input/6)+4);
 	}
 
 private:

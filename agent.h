@@ -76,14 +76,10 @@ protected:
 	virtual void init_weights(const std::string& info) {
 		// add : actually we just need 15^4 for threes instead of 2^16 for 2048
 		// here we use 2^16 for converting the index easier
-		net.emplace_back(65536); 
-		net.emplace_back(65536); 
-		net.emplace_back(65536); 
-		net.emplace_back(65536); 
-		net.emplace_back(65536); 
-		net.emplace_back(65536); 
-		net.emplace_back(65536); 
-		net.emplace_back(65536); 
+		net.emplace_back(1<<24); 
+		net.emplace_back(1<<24); 
+		net.emplace_back(1<<24); 
+		net.emplace_back(1<<24); 
 		// now net.size() == 2; net[0].size() == 65536; net[1].size() == 65536
 	}
 	virtual void load_weights(const std::string& path) {
@@ -121,31 +117,29 @@ public:
 	virtual ~learning_agent() {}
 
 	// add utilities
-	float decode(const board& state, int t1, int t2, int t3, int t4) const{
+	float decode(const board& state, int t1, int t2, int t3, int t4, int t5, int t6) const{
 		// change board info to net index
-		uint32_t space[] = {0, 1, 2, 3, 6, 12, 24, 48, 96, 192, 384, 768, 1536, 3072, 6144};
-		int s1, s2, s3, s4; s1=s2=s3=s4=0;
-		while(state(t1)!=space[s1] && s1 < 15) ++s1; 
-		while(state(t2)!=space[s2] && s2 < 15) ++s2; 
-		while(state(t3)!=space[s3] && s3 < 15) ++s3; 
-		while(state(t4)!=space[s4] && s4 < 15) ++s4; 
+		int s1, s2, s3, s4, s5, s6;
+		s1 = board().dec(state(t1));
+		s2 = board().dec(state(t2));
+		s3 = board().dec(state(t3));
+		s4 = board().dec(state(t4));
+		s5 = board().dec(state(t5));
+		s6 = board().dec(state(t6));
 		//std::cout << "----------------------------------------------------" <<std::endl;
 		//std::cout << (s1) << " " << (s2) << " " << (s3) << " " <<(s4) <<std::endl;
 		//std::cout << (s1<<12) + (s2<<8) + (s3<<4) +(s4) <<std::endl;
 		//std::cout << "----------------------------------------------------" <<std::endl;
-		return (s1<<12) + (s2<<8) + (s3<<4) +(s4);	// use 16 for conv
+		return (s1) + (s2<<4) + (s3<<8) + (s4<<12) + (s5<<16) + (s6<<20);	// use 2-power for conv
 	}
 
 	float state_value(const board& s) const{
 		float V=0;
-		V += net[0][decode(s,0,1,2,3)];
-		V += net[1][decode(s,4,5,6,7)];
-		V += net[2][decode(s,8,9,10,11)];
-		V += net[3][decode(s,12,13,14,15)];
-		V += net[4][decode(s,0,4,8,12)];
-		V += net[5][decode(s,1,5,9,13)];
-		V += net[6][decode(s,2,6,10,14)];
-		V += net[7][decode(s,3,7,11,15)];
+		V += net[0][decode(s,0,4,8,12,9,13)];
+		V += net[1][decode(s,1,5,9,13,10,14)];
+		V += net[2][decode(s,1,5,9,10,6,2)];
+		V += net[3][decode(s,2,6,10,11,7,3)];
+
 		//std::cout << "----------------------------------------------------" <<std::endl;
 		//std::cout << V <<std::endl;
 		//std::cout << "----------------------------------------------------" <<std::endl;
@@ -155,19 +149,16 @@ public:
 	float update(const board& s, const board& s_after, float reward, bool end){
 		// note that terminal state with target 0 : end TRUE -> term
 		float delta = reward + ((end)? (0) : (state_value(s_after))) - state_value(s);
-		float V=0; float rate = alpha/8.0;
+		float V=0; float rate = alpha/4.0;
 		//std::cout << "----------------------------------------------------" <<std::endl;
 		//std::cout << "delta : " << delta <<std::endl;
 		//std::cout << "before : " << net[0][decode(s,0,1,2,3)] <<std::endl;
 		//std::cout << "step: " << rate*delta <<std::endl;
-		(net[0][decode(s,0,1,2,3)] += rate*delta);
-		(net[1][decode(s,4,5,6,7)] += rate*delta);
-		(net[2][decode(s,8,9,10,11)] += rate*delta);
-		(net[3][decode(s,12,13,14,15)] += rate*delta);
-		(net[4][decode(s,0,4,8,12)] += rate*delta);
-		(net[5][decode(s,1,5,9,13)] += rate*delta);
-		(net[6][decode(s,2,6,10,14)] += rate*delta);
-		(net[7][decode(s,3,7,11,15)] += rate*delta);
+		(net[0][decode(s,0,4,8,12,9,13)] += rate*delta);
+		(net[1][decode(s,1,5,9,13,10,14)] += rate*delta);
+		(net[2][decode(s,1,5,9,10,6,2)] += rate*delta);
+		(net[3][decode(s,2,6,10,11,7,3)] += rate*delta);
+
 		//std::cout << "after : " << net[0][decode(s,0,1,2,3)] <<std::endl;
 		//std::cout << "----------------------------------------------------" <<std::endl;
 		return V; 	// return updated state value
@@ -291,9 +282,15 @@ public:
 
 	virtual void close_episode(const std::string& flag = "") {
     	// train the n-tuple network by TD(0)
-   		update(state[state.size()-1],board(),rh[state.size()-1],true);
+   		for(int j=0; j<4; j++){
+			   update(state[state.size()-1],board(),rh[state.size()-1],true); state[state.size()-1].rotate();
+		}
+		   
+		
     	for(int i = state.size() - 2; i >= 0; i--){
-        	update(state[i],state[i+1],rh[i],false);
+			for(int j=0; j<4; j++){
+				update(state[i],state[i+1],rh[i],false); state[i].rotate(); state[i+1].rotate();
+			}
     	}	
 	}
 	
