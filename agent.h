@@ -76,10 +76,13 @@ protected:
 	virtual void init_weights(const std::string& info) {
 		// add : actually we just need 15^4 for threes instead of 2^16 for 2048
 		// here we use 2^16 for converting the index easier
-		net.emplace_back(1<<24); 
-		net.emplace_back(1<<24); 
-		net.emplace_back(1<<24); 
-		net.emplace_back(1<<24); 
+		// total : 8 * 4 * 6
+		for(int i=0; i<8; i++){
+			net.emplace_back(1<<24); 
+			net.emplace_back(1<<24); 
+			net.emplace_back(1<<24); 
+			net.emplace_back(1<<24);  
+		}
 		// now net.size() == 2; net[0].size() == 65536; net[1].size() == 65536
 	}
 	virtual void load_weights(const std::string& path) {
@@ -133,31 +136,58 @@ public:
 		return (s1) + (s2<<4) + (s3<<8) + (s4<<12) + (s5<<16) + (s6<<20);	// use 2-power for conv
 	}
 
-	float state_value(const board& s) const{
+	float state_value(const board& s, int phase) const{
 		float V=0;
-		V += net[0][decode(s,0,4,8,12,9,13)];
-		V += net[1][decode(s,1,5,9,13,10,14)];
-		V += net[2][decode(s,1,5,9,10,6,2)];
-		V += net[3][decode(s,2,6,10,11,7,3)];
+		V += net[(phase<<2)+0][decode(s,0,4,8,12,9,13)];
+		V += net[(phase<<2)+1][decode(s,1,5,9,13,10,14)];
+		V += net[(phase<<2)+2][decode(s,1,5,9,10,6,2)];
+		V += net[(phase<<2)+3][decode(s,2,6,10,11,7,3)];
 
 		//std::cout << "----------------------------------------------------" <<std::endl;
 		//std::cout << V <<std::endl;
 		//std::cout << "----------------------------------------------------" <<std::endl;
 		return V;
 	}
+
+	float state_value(const board& s) const{
+		float V=0; board tmp = board(s);
+
+		for(int i=0; i<4; i++){
+			V += state_value(tmp,i);
+			tmp.rotate();
+		}
+		tmp.reflect_horizontal();
+		for(int i=0; i<4; i++){
+			V += state_value(tmp,i+4);
+			tmp.rotate();
+		}
+		
+		return V;
+	}
+
 	// for after state , we only give the evaluation instead of (state,reward) pair
 	float update(const board& s, const board& s_after, float reward, bool end){
 		// note that terminal state with target 0 : end TRUE -> term
 		float delta = reward + ((end)? (0) : (state_value(s_after))) - state_value(s);
-		float V=0; float rate = alpha/4.0;
-		//std::cout << "----------------------------------------------------" <<std::endl;
-		//std::cout << "delta : " << delta <<std::endl;
-		//std::cout << "before : " << net[0][decode(s,0,1,2,3)] <<std::endl;
-		//std::cout << "step: " << rate*delta <<std::endl;
-		(net[0][decode(s,0,4,8,12,9,13)] += rate*delta);
-		(net[1][decode(s,1,5,9,13,10,14)] += rate*delta);
-		(net[2][decode(s,1,5,9,10,6,2)] += rate*delta);
-		(net[3][decode(s,2,6,10,11,7,3)] += rate*delta);
+		float V=0; float rate = alpha/32.0;
+		
+		// update , using board transform to match 
+		board tmp = board(s);
+		for(int phase = 0; phase < 4; phase++){
+			(net[(phase<<2)+0][decode(tmp,0,4,8,12,9,13)] += rate*delta);
+			(net[(phase<<2)+1][decode(tmp,1,5,9,13,10,14)] += rate*delta);
+			(net[(phase<<2)+2][decode(tmp,1,5,9,10,6,2)] += rate*delta);
+			(net[(phase<<2)+3][decode(tmp,2,6,10,11,7,3)] += rate*delta);
+			tmp.rotate();
+		}
+		tmp.reflect_horizontal();
+		for(int phase = 4; phase < 8; phase++){
+			(net[(phase<<2)+0][decode(tmp,0,4,8,12,9,13)] += rate*delta);
+			(net[(phase<<2)+1][decode(tmp,1,5,9,13,10,14)] += rate*delta);
+			(net[(phase<<2)+2][decode(tmp,1,5,9,10,6,2)] += rate*delta);
+			(net[(phase<<2)+3][decode(tmp,2,6,10,11,7,3)] += rate*delta);
+			tmp.rotate();
+		}
 
 		//std::cout << "after : " << net[0][decode(s,0,1,2,3)] <<std::endl;
 		//std::cout << "----------------------------------------------------" <<std::endl;
@@ -268,6 +298,7 @@ public:
 			if (reward == -1) continue;	// not valid action
 			// float eval = static_cast<float>(reward) + state_value(after);
 			float eval = reward + state_value(after);
+
 			if(best_eval <= eval) {best_op = op; best_eval = eval;}
 		}	
 
@@ -282,15 +313,10 @@ public:
 
 	virtual void close_episode(const std::string& flag = "") {
     	// train the n-tuple network by TD(0)
-   		for(int j=0; j<4; j++){
-			   update(state[state.size()-1],board(),rh[state.size()-1],true); state[state.size()-1].rotate();
-		}
-		   
+		update(state[state.size()-1],board(),rh[state.size()-1],true); 
 		
-    	for(int i = state.size() - 2; i >= 0; i--){
-			for(int j=0; j<4; j++){
-				update(state[i],state[i+1],rh[i],false); state[i].rotate(); state[i+1].rotate();
-			}
+    	for(int i = state.size() - 2; i >= 0; i--){	
+			update(state[i],state[i+1],rh[i],false); 
     	}	
 	}
 	
